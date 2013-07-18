@@ -33,10 +33,19 @@ get ADD_ACCOUNT do
 end
 
 def add_account(country_code, stage, email)
-    Account.first_or_create(:country_code => country_code,
-                            :stage => stage,
-                            :email => email,
-                            :device_id => "none")
+    # Check if this account has already been added.
+    account = Account.first(:stage.like => stage,
+                            :email.like => email)
+
+    if not account then
+        account = Account.create(:country_code => country_code,
+                                 :stage => stage,
+                                 :email => email,
+                                 :device_id => "none")
+        print "\nAdded account: #{account.to_json}\n"
+    end
+
+    account
 end
 
 # Get an account
@@ -45,25 +54,29 @@ get GET_ACCOUNT do
 end
 
 def get_account(country_code, stage, device_id)
-    account = Account.first(:country_code => country_code,
-                            :stage => stage,
+    # Try to find an account already reserved for this device id
+    account = Account.first(:country_code.like => country_code,
+                            :stage.like => stage,
                             :device_id => device_id)
-    return account if account
+
+    # If there wasn't one, try to find an unreserved account and reserve it
+    account ||= Account.first(:country_code.like => country_code,
+                              :stage.like => stage,
+                              :device_id => "none")
     
-    new_account = Account.first(:country_code => country_code,
-                                :stage => stage,
-                                :device_id => "none")
-    if new_account then
-        new_account.update(:device_id => device_id)
-        return new_account
+    if account and account.device_id == "none" and device_id then
+        account.update(:device_id => device_id)
     end
+    
+    account
 end
 
 # Remove all accounts for a stage
 get CLEAR_ACCOUNTS do
+    print "\nClearing accounts for stage:#{params[:stage]}"
     if params[:stage] == "all" then
         Account.all.destroy
     else
-        Account.all(:stage => stage).destroy
+        Account.all(:stage.like => stage).destroy
     end
 end
