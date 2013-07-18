@@ -3,7 +3,7 @@ require "sinatra"
 require "data_mapper"
 require "json"
 
-DataMapper.setup(:default, "sqlite://#{File.expand_path(File.dirname(__FILE__))}/accounts.db")
+DataMapper.setup(:default, ENV['DATABASE_URL'] || 'postgres://localhost/mydb')
 class Account
     include DataMapper::Resource
 
