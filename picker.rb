@@ -61,7 +61,7 @@ end
 
 # Remove all accounts for a stage
 get CLEAR_ACCOUNTS do
-    if params[:stage].equals "all" then
+    if params[:stage] == "all" then
         Account.all.destroy
     else
         Account.all(:stage => stage).destroy
