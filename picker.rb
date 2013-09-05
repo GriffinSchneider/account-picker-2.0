@@ -3,9 +3,7 @@ require "sinatra"
 require "data_mapper"
 require "json"
 
-require './postgres-case-insensitive-like'
-
-DataMapper.setup(:default, ENV['DATABASE_URL'] || "sqlite://#{File.expand_path(File.dirname(__FILE__))}/accounts.db")
+DataMapper.setup(:default, "sqlite://#{File.expand_path(File.dirname(__FILE__))}/accounts.db")
 class Account
     include DataMapper::Resource
 
