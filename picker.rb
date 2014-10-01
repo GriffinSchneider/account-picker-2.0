@@ -2,6 +2,8 @@ require "rubygems"
 require "sinatra"
 require "data_mapper"
 require "json"
+require "net/http"
+require "uri"
 
 DataMapper.setup(:default, "sqlite://#{File.expand_path(File.dirname(__FILE__))}/accounts.db")
 class Account
@@ -18,13 +20,55 @@ DataMapper.finalize
 DataMapper.auto_upgrade!
 
 # Routes
+CREATE_ACCOUNT = "/createAccount/:country_code/:stage/:device_id"
 ADD_ACCOUNT = "/addAccount/:country_code/:stage/:email"
 GET_ACCOUNT = "/getAccount/:country_code/:stage/:device_id"
 CLEAR_ACCOUNTS = "/clearAccounts/:stage"
 
 # Documentation!
 get "/" do
-    "#{ADD_ACCOUNT}<br>#{GET_ACCOUNT}<br>#{CLEAR_ACCOUNTS}"
+    "#{CREATE_ACCOUNT}<br>#{ADD_ACCOUNT}<br>#{GET_ACCOUNT}<br>#{CLEAR_ACCOUNTS}"
+end
+
+# Add an account
+get CREATE_ACCOUNT do
+    create_account(params[:country_code], params[:stage], params[:device_id]).to_json
+end
+
+def create_account(country_code, stage, device_id)
+  uri = URI('http://pphstage.ebayc3.com/accounts/create')
+  params = { :country => country_code, :stage => stage}
+  uri.query = URI.encode_www_form(params)
+  req = Net::HTTP::Get.new uri 
+  res = Net::HTTP.start(uri.host, uri.port) {|http| http.request req}
+
+
+  if res.is_a?(Net::HTTPSuccess) then
+    json = JSON.parse(res.body)
+    account = Account.create(:country_code => country_code,
+                             :stage => stage,
+                             :email => json['user']['emailAddress'],
+                             :device_id => device_id)
+    
+    print "\nAdded account: #{account.to_json}\n"
+
+    if whitelist_account(json['user']['accountNumber'], stage) then
+      account
+    end
+  end
+end
+
+def whitelist_account(account_number, stage)
+  uri = URI('http://pphstage.ebayc3.com/accounts/whitelist')
+  params = { :accountNumber => account_number, :stage => stage}
+  uri.query = URI.encode_www_form(params)
+  req = Net::HTTP::Get.new uri 
+  res = Net::HTTP.start(uri.host, uri.port) {|http| http.request req}
+
+  if res.is_a?(Net::HTTPSuccess) then
+    print "\nWhitelisted account: #{account_number}\n"
+    true
+  end
 end
 
 # Add an account
